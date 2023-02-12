@@ -18,7 +18,23 @@ from model.waveunet import WaveUNet
 
 
 class EarlyStopping:
-    def __init__(self, patience, path='checkpoint.pt'):
+    """Early stopping class for training.
+
+    Note:
+        This early stopping class is made for SDR loss. It may not be suitable for other losses.
+
+    Args:
+        patience: training will be stopped if the validation loss was not improved more than 'patience'th iteration.
+        path: name and path to save best validation model.
+
+    Attributes:
+        patience: training will be stopped if the validation loss was not improved more than 'patience'th iteration.
+        best_loss: current best validation loss.  initial value is `-inf`.
+        counter: count increases when the current validation loss is not improved compare with `best_loss`. will be set to 0 if 
+                 current loss has improved.
+        early_stop: set to `True` if counter is greater or equal than patience. used for stop validation step.
+    """
+    def __init__(self, patience=20, path='best.pt'):
         self.patience = patience
         self.best_loss = -np.inf
         self.counter = 0
@@ -40,6 +56,20 @@ class EarlyStopping:
         return self.early_stop
 
 def sdr_loss_mean(y_target, y_pred, loss_fn) -> Tuple[float, list, int]:
+    """Calculate the sdr loss of batch.
+
+    Each return value will be used for the average value of accompanies' loss, and median of vocal loss.
+
+    Args:
+        y_target: original target batch
+        y_pred: prediction of y_target
+        loss_fn: loss function(SDR)
+    
+    Returns:
+        float: the sum of accompanies' loss
+        list(Tensor): the list of Tensor of calculated vocal loss
+        int: the number of accmpanies' loss
+    """
     y_target_acc = y_target[:, 0:3]
     y_target_acc = torch.flatten(y_target_acc, end_dim=1)
     y_pred_acc = y_pred[:, 0:3]
@@ -63,6 +93,16 @@ def sdr_loss_mean(y_target, y_pred, loss_fn) -> Tuple[float, list, int]:
     return loss_acc, loss_voc, y_target_acc.shape[0]
 
 def train(dataloader, model, loss_fn, loss_list, optimizer, device):
+    """Training step.
+
+    Args:
+        dataloader: train dataloader
+        model: WaveUNet model
+        loss_fn: loss function for training step(MSE)
+        loss_list: list to save train losses
+        optimizer: optimizer for training step
+        device: device to train
+    """
     size = len(dataloader.dataset)
     loss_avg = 0
     for batch, (X, y) in enumerate(tqdm(dataloader)):
@@ -75,15 +115,25 @@ def train(dataloader, model, loss_fn, loss_list, optimizer, device):
         optimizer.step()
 
         loss_avg += loss.item()
-        
-        # if batch*len(X) % 800 == 0:
-        #    print(f"loss : {loss.item()} ({batch*len(X)}/{size})")
+
     loss_avg = loss_avg / len(dataloader)
     loss_list.append(loss_avg)
     print(f"train loss : {loss_avg}")
 
 
 def val(dataloader, model, loss_fn, loss_list, early_stop, device):
+    """Validation step.
+
+    Accompany loss will be used for early stopping.
+
+    Args:
+        dataloader: validation dataloader
+        model: WaveUNet model
+        loss_fn: loss function for validation step(SDR)
+        loss_list: list to save validation losses
+        early_stop: early stopping class instance
+        device: device to validation
+    """
     model.eval()
     val_loss_acc = 0
     val_loss_voc = []
@@ -103,6 +153,14 @@ def val(dataloader, model, loss_fn, loss_list, early_stop, device):
     print(f"validation loss : {val_loss_acc} (accompanies loss, mean), {val_loss_voc} (vocal loss, median)\n")
 
 def test(dataloader, model, loss_fn, device):
+    """Test step.
+
+    Args:
+        dataloader: test dataloader
+        model: WaveUNet model
+        loss_fn: loss function for test step(SDR)
+        device: device to test
+    """
     model.eval()
     test_loss_acc = 0
     test_loss_voc = []
@@ -120,6 +178,17 @@ def test(dataloader, model, loss_fn, device):
     print(f"test loss : {test_loss_acc} (accompanies loss, mean), {test_loss_voc} (vocal loss, median)\n")
 
 def load_checkpoint(checkpoint, model, optimizer) -> Dict:
+    """Load from saved checkpoint to resume training.
+
+    Args:
+        checkpoint: name of saved checkpoint file.
+        model: model to load from saved checkpoint
+        optimizer: optimizer to load from saved checkpoint
+    
+    Returns:
+        dict: checkpoint state dictionary. model and optimizer's state dictionary will be loaded in this function,
+              but `earlystop_bestloss`, `earlystop_counter`, `train_losslist`, `val_losslist`, `epoch` may be used from return value.
+    """
     checkpoint = torch.load(checkpoint)
 
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -142,19 +211,19 @@ def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device")
 
-    model = WaveUNet(n_level=args.n_layers).to(device)
+    model = WaveUNet(n_level=args.n_layers, n_source=args.n_sources).to(device)
     loss_fn = nn.MSELoss()
     test_loss_fn = ModifiedSDR().to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=[0.9, 0.999])
 
-    early_stop = EarlyStopping(patience=args.patience, path=args.path_bestval)
+    early_stop = EarlyStopping(patience=args.patience, path=args.filename_bestval)
 
     epochs = args.max_epoch
 
     start_epoch=1
-    if args.path_checkpoint is not None:
-        checkpoint_dict = load_checkpoint(args.path_checkpoint, model, optimizer)
+    if args.filename_checkpoint is not None:
+        checkpoint_dict = load_checkpoint(args.filename_checkpoint, model, optimizer)
         early_stop.best_loss = checkpoint_dict['earlystop_bestloss']
         early_stop.counter = checkpoint_dict['earlystop_counter']
 
@@ -171,7 +240,7 @@ def main(args):
 
         if early_stop.is_stop():
             print("Early stop. Loading best model...")
-            model.load_state_dict(torch.load(args.path_bestval))
+            model.load_state_dict(torch.load(args.filename_bestval))
             break
 
         torch.save({
@@ -195,15 +264,16 @@ def main(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Train WaveUNet')
 
-    parser.add_argument('PATH_TRAIN', type=str, help='the directory where train dataset is stored')
-    parser.add_argument('PATH_TEST', type=str, help='the directory where test dataset is stored')
+    parser.add_argument('path_train', type=str, help='the directory where train dataset is stored')
+    parser.add_argument('path_test', type=str, help='the directory where test dataset is stored')
     parser.add_argument('--batch_size', type=int, default=16)
     parser.add_argument('--n_layers', type=int, default=12, help='the number of layers')
+    parser.add_argument('--n_sources', type=int, default=4, help='the number of output sources')
     parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
     parser.add_argument('--patience', type=int, default=20, help='patience for early stopping')
     parser.add_argument('--max_epoch', type=int, default=200)
-    parser.add_argument('--path_bestval', type=str, default='checkpoint/best.pt', help='path and name of best validation checkpoint')
-    parser.add_argument('--path_checkpoint', type=str, default=None, help='path and name of checkpoint to resume training right after interruption')
+    parser.add_argument('--filename_bestval', type=str, default='checkpoint/best.pt', help='path and name of where to save best validation checkpoint')
+    parser.add_argument('--filename_checkpoint', type=str, default=None, help='path and name of checkpoint to resume training(Optional)')
 
     args = parser.parse_args()
     main(args)
