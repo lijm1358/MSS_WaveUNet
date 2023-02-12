@@ -24,6 +24,7 @@ from torch import Tensor
 from typing import Tuple
 
 class ModifiedSDR(SignalDistortionRatio):
+    """Modiifed version of `SignalDistortionRation` in "TorchMetrics"."""
     def update(self, preds: Tensor, target: Tensor) -> None:
         sdr_batch = signal_distortion_ratio(
             preds, target, self.use_cg_iter, self.filter_length, self.zero_mean, self.load_diag
@@ -33,4 +34,5 @@ class ModifiedSDR(SignalDistortionRatio):
         self.sum_sdr += sdr_batch.sum()
 
     def compute(self) -> Tuple[Tensor, Tensor]:
+        """returns SDR sum and Tensor of batch's SDR"""
         return self.sum_sdr, self.sdr_batch

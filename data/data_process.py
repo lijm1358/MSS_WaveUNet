@@ -9,6 +9,16 @@ from tqdm import tqdm
 
 
 def separate_source(base_dir, target_dir):
+    """Separate multiple input streams into 5 outputs.
+
+    Original MUSDB18 data has 4 stems: vocals, drums, bass, and others.
+    It separates those 4 stems and original sound. Each output has the number
+    0 to 4, each indicates original sound, vocal stem, drum stem, bass stem, and others stem.
+
+    Args:
+        base_dir: Directory where the MUSDB18 dataset is stored
+        target_dir: Directory where the separated stems will be stored
+    """
     files = os.listdir(base_dir)
     for file in tqdm(files, position=0, leave=True):
         file_in = os.path.join(base_dir,file)
@@ -23,6 +33,7 @@ def separate_source(base_dir, target_dir):
                 stderr=subprocess.STDOUT)
 
 def convert_to_numpy(base_dir, target_dir):
+    """Convert sound data into numpy array"""
     music_list = os.listdir(base_dir)
     music_list.sort()
 
@@ -36,6 +47,14 @@ def convert_to_numpy(base_dir, target_dir):
             np.save(outfile_name, arr)
 
 def separate_segment(base_dir, target_dir, sep_length):
+    """Separate numpy array data into the same length segments
+
+    Args:
+        base_dir: Directory where the converted MUSDB18 dataset(numpy array) is stored
+        target_dir: Directory where the array segments will be stored
+        sep_length: the length of segments. set to 22050(Original sampling rate) for
+                    1 second length segment.
+    """
     filelist = os.listdir(base_dir)
     filelist.sort()
     song_np_full = []

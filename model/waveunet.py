@@ -4,6 +4,13 @@ import torch.nn.functional as F
 from torch.nn.functional import pad
 
 class DownSampling(nn.Module):
+    """Donwsampling block of WaveUNet.
+
+    Args:
+        in_ch: the number of input channels
+        out_ch: the number of output channels
+        kernel_size: kernel size of convolution layer
+    """
     def __init__(self, in_ch=1, out_ch=24, kernel_size=15):
         super().__init__()
         self.net = nn.Sequential(
@@ -18,6 +25,17 @@ class DownSampling(nn.Module):
         return x
 
 class UpSampling(nn.Module):
+    """Upsampling block of WaveUNet.
+
+    Args:
+        in_ch: the number of input channels
+        out_ch: the number of output channels
+        kernel_size: kernel size of convolution layer
+
+    Attributes:
+        upsample: upsampling layer to double the input size
+        conv: convolution layers with LeakyReLU
+    """
     def __init__(self, in_ch, out_ch, kernel_size):
         super().__init__()
         self.upsample = nn.Upsample(scale_factor=2, mode="linear", align_corners=True)
@@ -29,6 +47,11 @@ class UpSampling(nn.Module):
         )
         
     def forward(self, x, x_back):
+        """Forward the upsampling block input.
+
+        Before the forwarding output of upsample layers to convolution layers, concatenates the output of 
+        corresponding Donwsampling block with the result of Upsample.
+        """
         x = self.upsample(x)
         diff = x_back.shape[-1] - x.shape[-1]
         x = pad(x, (0, diff))
@@ -36,6 +59,7 @@ class UpSampling(nn.Module):
         return self.conv(x)
 
 class WaveUNet(nn.Module):
+    """WaveUNet architecture"""
     def __init__(self, n_level=12, n_source=4):
         super().__init__()
         self.level = n_level
