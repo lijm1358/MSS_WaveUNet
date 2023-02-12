@@ -27,7 +27,6 @@ def separate_source(base_dir, target_dir):
             filesp[-1] = f"{i}.mp3"
             filesp = ".".join(filesp)
             file_out = f"{target_dir}/{filesp}"
-            print(file_out)
             call(('ffmpeg', '-y', '-i', file_in, '-map', f'0:{i}', '-vn', file_out),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT)
