@@ -5,8 +5,8 @@ import os
 from data_process import separate_source, separate_segment, convert_to_numpy
 
 def main(args):
-    base_dir = args.BASE_DIR
-    target_dir = args.TARGET_DIR
+    base_dir = args.base_dir
+    target_dir = args.target_dir
     sep_length_train = args.sep_length_train
     sep_length_test = args.sep_length_test
     no_sep_stem = args.no_sep_stem
@@ -26,7 +26,9 @@ def main(args):
     os.makedirs(target_dir_train, exist_ok=True)
     os.makedirs(target_dir_test, exist_ok=True)
 
+
     if not no_sep_stem:
+        print("Separating stems")
         separate_source(base_dir_train, target_dir_train)
         separate_source(base_dir_test, target_dir_test)
     else:
@@ -38,9 +40,11 @@ def main(args):
     os.makedirs(target_dir_split_train, exist_ok=True)
     os.makedirs(target_dir_split_test, exist_ok=True)
 
+    print("Converting to numpy array")
     convert_to_numpy(target_dir_train, target_dir_numpy_train)
     convert_to_numpy(target_dir_test, target_dir_numpy_test)
 
+    print("Separating into segments")
     separate_segment(target_dir_numpy_train, target_dir_split_train, sep_length_train)
     separate_segment(target_dir_numpy_test, target_dir_split_test, sep_length_test)
 
@@ -59,42 +63,3 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args)
-
-    base_dir = args.BASE_DIR
-    target_dir = args.TARGET_DIR
-    sep_length_train = args.sep_length_train
-    sep_length_test = args.sep_length_test
-    no_sep_stem = args.no_sep_stem
-
-    base_dir_train = os.path.join(base_dir, 'train')
-    base_dir_test = os.path.join(base_dir, 'test')
-
-    target_dir_train = os.path.join(target_dir, 'train')
-    target_dir_test = os.path.join(target_dir, 'test')
-
-    target_dir_numpy_train = os.path.join(target_dir_train, 'data_numpy')
-    target_dir_numpy_test = os.path.join(target_dir_test, 'data_numpy')
-
-    target_dir_split_train = os.path.join(target_dir_train, 'data_split')
-    target_dir_split_test = os.path.join(target_dir_test, 'data_split')
-
-    os.makedirs(target_dir_train, exist_ok=True)
-    os.makedirs(target_dir_test, exist_ok=True)
-
-    if not no_sep_stem:
-        separate_source(base_dir_train, target_dir_train)
-        separate_source(base_dir_test, target_dir_test)
-    else:
-        target_dir_train = base_dir_train
-        target_dir_test = base_dir_test
-
-    os.makedirs(target_dir_numpy_train, exist_ok=True)
-    os.makedirs(target_dir_numpy_test, exist_ok=True)
-    os.makedirs(target_dir_split_train, exist_ok=True)
-    os.makedirs(target_dir_split_test, exist_ok=True)
-
-    convert_to_numpy(target_dir_train, target_dir_numpy_train)
-    convert_to_numpy(target_dir_test, target_dir_numpy_test)
-
-    separate_segment(target_dir_numpy_train, target_dir_split_train, sep_length_train)
-    separate_segment(target_dir_numpy_test, target_dir_split_test, sep_length_test)
