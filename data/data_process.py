@@ -26,7 +26,7 @@ def separate_source(base_dir, target_dir):
             filesp = file.split(".")
             filesp[-1] = f"{i}.mp3"
             filesp = ".".join(filesp)
-            file_out = f"{target_dir}/{filesp}"
+            file_out = os.path.join(f"{target_dir}", f"{filesp}")
             call(('ffmpeg', '-y', '-i', file_in, '-map', f'0:{i}', '-vn', file_out),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.STDOUT)
@@ -35,14 +35,13 @@ def convert_to_numpy(base_dir, target_dir):
     """Convert sound data into numpy array"""
     music_list = os.listdir(base_dir)
     music_list.sort()
-
     warnings.filterwarnings('ignore')
     for music in tqdm(music_list):
-        music = os.path.join(base_dir, music)
-        if not os.path.isdir(music):
-            outfile_name = music.split("/")[-1]
+        music_path = os.path.join(base_dir, music)
+        if not os.path.isdir(music_path):
+            outfile_name = music
             outfile_name = os.path.join(target_dir, outfile_name)
-            arr, _ = librosa.load(music)
+            arr, _ = librosa.load(music_path)
             np.save(outfile_name, arr)
 
 def separate_segment(base_dir, target_dir, sep_length):
