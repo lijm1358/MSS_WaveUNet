@@ -121,7 +121,7 @@ def train(dataloader, model, loss_fn, loss_list, optimizer, device):
     print(f"train loss : {loss_avg}")
 
 
-def val(dataloader, model, loss_fn, loss_list, early_stop, device):
+def val(dataloader, model, loss_fn, loss_list, early_stop, device, loss_device):
     """Validation step.
 
     Accompany loss will be used for early stopping.
@@ -140,8 +140,10 @@ def val(dataloader, model, loss_fn, loss_list, early_stop, device):
     data_count = 0
     with torch.no_grad():
         for X, y in tqdm(dataloader):
-            X, y = X.to(device), y.to(device)
+            X, y = X.to(device), y.to(loss_device)
             pred = model(X)
+            if device != loss_device:
+                pred = pred.to(loss_device)
             acc_loss, voc_loss, count = sdr_loss_mean(y, pred, loss_fn)
             val_loss_acc += acc_loss
             val_loss_voc += voc_loss
@@ -152,7 +154,7 @@ def val(dataloader, model, loss_fn, loss_list, early_stop, device):
     loss_list.append(val_loss_acc)
     print(f"validation loss : {val_loss_acc} (accompanies loss, mean), {val_loss_voc} (vocal loss, median)\n")
 
-def test(dataloader, model, loss_fn, device):
+def test(dataloader, model, loss_fn, device, loss_device):
     """Test step.
 
     Args:
@@ -167,8 +169,10 @@ def test(dataloader, model, loss_fn, device):
     data_count = 0
     with torch.no_grad():
         for X, y in tqdm(dataloader):
-            X, y = X.to(device), y.to(device)
+            X, y = X.to(device), y.to(loss_device)
             pred = model(X)
+            if device != loss_device:
+                pred = pred.to(loss_device)
             acc_loss, voc_loss, count = sdr_loss_mean(y, pred, loss_fn)
             test_loss_acc += acc_loss
             test_loss_voc += voc_loss
@@ -211,7 +215,8 @@ def main(args):
     test_dataloader = DataLoader(test_ds, batch_size=args.batch_size)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using {device} device")
+    loss_device = "cpu" if args.no_cuda_sdr else device
+    print(f"Using {device} device({loss_device} for sdr loss)")
 
     model = WaveUNet(n_level=args.n_layers, n_source=args.n_sources).to(device)
     loss_fn = nn.MSELoss()
@@ -240,7 +245,7 @@ def main(args):
         train(train_dataloader, model, loss_fn, train_loss_list, optimizer, device)
         
         with torch.no_grad():
-            val(valid_dataloader, model, test_loss_fn, val_loss_list, early_stop, device)
+            val(valid_dataloader, model, test_loss_fn, val_loss_list, early_stop, device, loss_device)
 
         if early_stop.is_stop():
             print("Early stop. Loading best model...")
@@ -263,7 +268,7 @@ def main(args):
             pass
 
     with torch.no_grad():
-        test(test_dataloader, model, test_loss_fn, device)
+        test(test_dataloader, model, test_loss_fn, device, loss_device)
     torch.save(model.state_dict(), "model.pt")
 
 if __name__ == '__main__':
@@ -277,6 +282,8 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.0001, help='learning rate')
     parser.add_argument('--patience', type=int, default=20, help='patience for early stopping')
     parser.add_argument('--max_epoch', type=int, default=200)
+    parser.add_argument('--device', type=str, help="device to train, validation, test. default is set to cuda, if available")
+    parser.add_argument('--no_cuda_sdr', default=False, action='store_true', help='calculate the sdr loss using cpu. this is recommended only when a CUDA error occurs during the validation and test step.')
     parser.add_argument('--filename_bestval', type=str, default='checkpoint/best.pt', help='path and name of where to save best validation checkpoint')
     parser.add_argument('--filename_checkpoint', type=str, default=None, help='path and name of checkpoint to resume training(Optional)')
 
