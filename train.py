@@ -200,8 +200,8 @@ def main(args):
     train_loss_list = []
     val_loss_list = []
 
-    train_ds = MUSDBDataset(args.PATH_TRAIN)
-    test_ds = MUSDBDataset(args.PATH_TEST)
+    train_ds = MUSDBDataset(args.path_train)
+    test_ds = MUSDBDataset(args.path_test)
     valid_ds, test_ds = random_split(test_ds, [int(len(test_ds)*0.5), len(test_ds) - int(len(test_ds)*0.5)])
 
     train_dataloader = DataLoader(train_ds, batch_size=args.batch_size)
