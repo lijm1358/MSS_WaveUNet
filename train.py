@@ -236,7 +236,9 @@ def main(args):
         print(f"epoch : {t}\n---------------------------")
         model.train()
         train(train_dataloader, model, loss_fn, train_loss_list, optimizer, device)
-        val(valid_dataloader, model, test_loss_fn, val_loss_list, early_stop, device)
+        
+        with torch.no_grad():
+            val(valid_dataloader, model, test_loss_fn, val_loss_list, early_stop, device)
 
         if early_stop.is_stop():
             print("Early stop. Loading best model...")
@@ -258,7 +260,8 @@ def main(args):
         except OSError:
             pass
 
-    test(test_dataloader, model, test_loss_fn, device)
+    with torch.no_grad():
+        test(test_dataloader, model, test_loss_fn, device)
     torch.save(model.state_dict(), "model.pt")
 
 if __name__ == '__main__':
