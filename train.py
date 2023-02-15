@@ -197,6 +197,8 @@ def load_checkpoint(checkpoint, model, optimizer) -> Dict:
     return checkpoint
 
 def main(args):
+    filename_bestval = os.path.normpath(args.filename_bestval)
+    
     train_loss_list = []
     val_loss_list = []
 
@@ -217,7 +219,7 @@ def main(args):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=[0.9, 0.999])
 
-    early_stop = EarlyStopping(patience=args.patience, path=args.filename_bestval)
+    early_stop = EarlyStopping(patience=args.patience, path=filename_bestval)
 
     epochs = args.max_epoch
 
@@ -242,7 +244,7 @@ def main(args):
 
         if early_stop.is_stop():
             print("Early stop. Loading best model...")
-            model.load_state_dict(torch.load(args.filename_bestval))
+            model.load_state_dict(torch.load(filename_bestval))
             break
 
         torch.save({
@@ -253,10 +255,10 @@ def main(args):
             'earlystop_counter': early_stop.counter,
             'train_losslist': train_loss_list,
             'val_losslist': val_loss_list
-        }, f'checkpoint/checkpoint_epoch{t}')
+        }, os.path.normpath(f'checkpoint/checkpoint_epoch{t}'))
 
         try:
-            os.remove(f'checkpoint/checkpoint_epoch{t-1}')
+            os.remove(os.path.normpath(f'checkpoint/checkpoint_epoch{t-1}'))
         except OSError:
             pass
 
