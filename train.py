@@ -20,9 +20,6 @@ from model.waveunet import WaveUNet
 class EarlyStopping:
     """Early stopping class for training.
 
-    Note:
-        This early stopping class is made for SDR loss. It may not be suitable for other losses.
-
     Args:
         patience: training will be stopped if the validation loss was not improved more than 'patience'th iteration.
         path: name and path to save best validation model.
@@ -36,13 +33,13 @@ class EarlyStopping:
     """
     def __init__(self, patience=20, path='best.pt'):
         self.patience = patience
-        self.best_loss = -np.inf
+        self.best_loss = np.inf
         self.counter = 0
         self.path = path
         self.early_stop = False
     
     def __call__(self, val_loss, model):
-        if self.best_loss < val_loss:
+        if self.best_loss > val_loss:
             print(f'Validation loss improved({self.best_loss} -> {val_loss})')
             self.counter = 0
             self.best_loss = val_loss
@@ -121,10 +118,8 @@ def train(dataloader, model, loss_fn, loss_list, optimizer, device):
     print(f"train loss : {loss_avg}")
 
 
-def val(dataloader, model, loss_fn, loss_list, early_stop, device, loss_device):
+def val(dataloader, model, loss_fn, loss_list, early_stop, device):
     """Validation step.
-
-    Accompany loss will be used for early stopping.
 
     Args:
         dataloader: validation dataloader
@@ -135,24 +130,19 @@ def val(dataloader, model, loss_fn, loss_list, early_stop, device, loss_device):
         device: device to validation
     """
     model.eval()
-    val_loss_acc = 0
-    val_loss_voc = []
-    data_count = 0
+    loss_avg = 0
     with torch.no_grad():
         for X, y in tqdm(dataloader):
-            X, y = X.to(device), y.to(loss_device)
+            X, y = X.to(device), y.to(device)
             pred = model(X)
-            if device != loss_device:
-                pred = pred.to(loss_device)
-            acc_loss, voc_loss, count = sdr_loss_mean(y, pred, loss_fn)
-            val_loss_acc += acc_loss
-            val_loss_voc += voc_loss
-            data_count += count
-    val_loss_acc /= data_count
-    val_loss_voc = statistics.median(val_loss_voc)
-    early_stop(val_loss_acc, model) # only accompanies' sdr will be used for early stopping.
-    loss_list.append(val_loss_acc)
-    print(f"validation loss : {val_loss_acc} (accompanies loss, mean), {val_loss_voc} (vocal loss, median)\n")
+            loss = loss_fn(pred, y)
+            
+            loss_avg += loss.item()
+        
+        loss_avg = loss_avg / len(dataloader)
+    early_stop(loss_avg, model)
+    loss_list.append(loss_avg)
+    print(f"validation loss : {loss_avg}")
 
 def test(dataloader, model, loss_fn, device, loss_device):
     """Test step.
@@ -245,7 +235,8 @@ def main(args):
         train(train_dataloader, model, loss_fn, train_loss_list, optimizer, device)
         
         with torch.no_grad():
-            val(valid_dataloader, model, test_loss_fn, val_loss_list, early_stop, device, loss_device)
+            val(valid_dataloader, model, loss_fn, val_loss_list, early_stop, device)
+        print()
 
         if early_stop.is_stop():
             print("Early stop. Loading best model...")
@@ -283,7 +274,7 @@ if __name__ == '__main__':
     parser.add_argument('--patience', type=int, default=20, help='patience for early stopping')
     parser.add_argument('--max_epoch', type=int, default=200)
     parser.add_argument('--device', type=str, help="device to train, validation, test. default is set to cuda, if available")
-    parser.add_argument('--no_cuda_sdr', default=False, action='store_true', help='calculate the sdr loss using cpu. this is recommended only when a CUDA error occurs during the validation and test step.')
+    parser.add_argument('--no_cuda_sdr', default=False, action='store_true', help='calculate the sdr loss using cpu. this is recommended only when a CUDA error occurs during the test step.')
     parser.add_argument('--filename_bestval', type=str, default='checkpoint/best.pt', help='path and name of where to save best validation checkpoint')
     parser.add_argument('--filename_checkpoint', type=str, default=None, help='path and name of checkpoint to resume training(Optional)')
 
