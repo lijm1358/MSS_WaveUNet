@@ -77,9 +77,8 @@ class WaveUNet(nn.Module):
         self.net = nn.ModuleList(layers)
         self.separation = nn.Sequential(
             nn.Conv1d(25, n_source, kernel_size=1),
-            nn.LeakyReLU(inplace=True),
             nn.Conv1d(n_source, n_source, kernel_size=1),
-            nn.LeakyReLU(inplace=True),
+            nn.Tanh()
         )
     
     def forward(self, x: Tensor):
