@@ -69,3 +69,29 @@ def separate_segment(base_dir, target_dir, sep_length):
                 index+=sep_length
                 count+=1
             song_np_full = []
+            
+def data_augmentation(base_dir):
+    def rename_augmented(filename, stem):
+        file_split = filename.split('.')
+        file_split[0] += "_aug"
+        file_split[-3] = str(stem)
+        file_split = '.'.join(file_split)
+        return file_split
+    
+    filelist = os.listdir(base_dir)
+    filelist.sort()
+    song_np_list = []
+    
+    for i, filename in enumerate(tqdm(filelist)):
+        filename_full = os.path.join(base_dir, filename)
+        song_np = np.load(filename_full)
+        song_np_list.append(song_np)
+        if i%5 == 4:
+            for n in range(1, 5):
+                factor = np.random.uniform(0.7, 1.0)
+                song_np_list[n] *= factor
+            song_np_list[0] = sum(song_np_list[1:])
+            for stem, song in enumerate(song_np_list):
+                filename_renamed = rename_augmented(filename, stem)
+                np.save(os.path.join(base_dir, filename_renamed), song)
+            song_np_list.clear()
