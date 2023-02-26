@@ -30,7 +30,7 @@ You can train WaveUNet model with MUSDB18 dataset.
 ```bash
 python process.py path/to/musdb18/dataset path/to/save
 ```
-4. train the model using `train.py`. if you process musdb18 dataset with `process.py`, the directory of the train dataset will be `path/to/save/train/data_split`, and the test dataset will be `path/to/save/test/data_split`.
+4. train the model using `train.py`. if you have processed the musdb18 dataset with `process.py`, the directory of the train dataset will be `path/to/save/train/data_split`, and the test dataset will be `path/to/save/test/data_split`.
 ```bash
 python train.py path/train/data_split path/test/data_split
 ```
@@ -39,7 +39,7 @@ python train.py path/train/data_split path/test/data_split
 Or, you can use your own dataset to train the WaveUNet model, but you may need to use your own data processing method or script.
 
 ## Predict
-You can separate the music into 4 separated stems using `predict.py`: vocal, drum, bass, and others.
+You can separate the music into 4 stems using `predict.py`: vocal, drum, bass, and others.
 Result of the prediction will be saved in `output/song_out_n.wav`. `n` will be the stem numbers, from 0 to 3, each means the drum, bass, others, and vocal.
 ```bash
 python predict.py --path_model model.pt --path_song path/to/song.mp3
