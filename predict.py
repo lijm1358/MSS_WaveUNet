@@ -12,6 +12,10 @@ from model.waveunet import WaveUNet
 def main(args):
     path_model = os.path.expanduser(args.path_model)
     path_song = os.path.expanduser(args.path_song)
+    path_to_save = os.path.normpath(args.path_to_save)
+    
+    os.makedirs(path_to_save, exist_ok=True)
+    
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device")
     model = WaveUNet().to(device)
@@ -38,7 +42,7 @@ def main(args):
 
     for i in range(4):
         soundfile.write(
-            os.path.join(args.path_to_save, f"song_out_{i}.wav"),
+            os.path.join(path_to_save, f"song_out_{i}.wav"),
             pred[0][i],
             22050,
             format="wav",
