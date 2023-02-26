@@ -1,6 +1,8 @@
-from torch.utils.data import Dataset
 import os
+
 import numpy as np
+from torch.utils.data import Dataset
+
 
 class MUSDBDataset(Dataset):
     """MUSDB18 Dataset.
@@ -12,6 +14,7 @@ class MUSDBDataset(Dataset):
         music_list: list of names of segment
         data_dir: directory where the same length segments of MUSDB18 are stored
     """
+
     def __init__(self, data_dir: str):
         self.music_list = []
         self.data_dir = os.path.join(data_dir)

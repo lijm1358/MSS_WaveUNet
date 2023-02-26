@@ -1,10 +1,10 @@
 import argparse
 import os
 
-import torch
 import librosa
-import soundfile
 import numpy as np
+import soundfile
+import torch
 
 from model.waveunet import WaveUNet
 

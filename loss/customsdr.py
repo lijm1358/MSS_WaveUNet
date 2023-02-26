@@ -17,17 +17,24 @@ This file(class) has been modified by lijm1358(JongMok Lee) for
 additional loss output
 """
 
+from typing import Tuple
+
+from torch import Tensor
 from torchmetrics.audio import SignalDistortionRatio
 from torchmetrics.functional.audio.sdr import signal_distortion_ratio
-from torch import Tensor
 
-from typing import Tuple
 
 class ModifiedSDR(SignalDistortionRatio):
     """Modiifed version of `SignalDistortionRation` in "TorchMetrics"."""
+
     def update(self, preds: Tensor, target: Tensor) -> None:
         sdr_batch = signal_distortion_ratio(
-            preds, target, self.use_cg_iter, self.filter_length, self.zero_mean, self.load_diag
+            preds,
+            target,
+            self.use_cg_iter,
+            self.filter_length,
+            self.zero_mean,
+            self.load_diag,
         )
 
         self.sdr_batch = sdr_batch
