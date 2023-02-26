@@ -8,6 +8,7 @@ import numpy as np
 
 from model.waveunet import WaveUNet
 
+
 def main(args):
     path_model = os.path.expanduser(args.path_model)
     path_song = os.path.expanduser(args.path_song)
@@ -20,20 +21,36 @@ def main(args):
     song = torch.Tensor(song_np.reshape(1, 1, -1)).to(device)
 
     model.eval()
+    pred = None
     with torch.no_grad():
-        pred = model(song)
+        sep_length = 16384
+        start = 0
+        while start < song.shape[2]:
+            if pred == None:
+                pred = model(song[:, :, start : start + sep_length])
+            else:
+                pred = torch.cat(
+                    (pred, model(song[:, :, start : start + sep_length])), 2
+                )
+            start += sep_length
 
     pred = pred.cpu()
 
     for i in range(4):
-        soundfile.write(os.path.join(args.path_to_save, f'song_out_{i}.wav'), pred[0][i], 22050, format='wav')
+        soundfile.write(
+            os.path.join(args.path_to_save, f"song_out_{i}.wav"),
+            pred[0][i],
+            22050,
+            format="wav",
+        )
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='predict')
 
-    parser.add_argument('--path_model', type=str, default='model.pt')
-    parser.add_argument('--path_song', type=str, required=True)
-    parser.add_argument('--path_to_save', type=str, default='./output')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="predict")
+
+    parser.add_argument("--path_model", type=str, default="model.pt")
+    parser.add_argument("--path_song", type=str, required=True)
+    parser.add_argument("--path_to_save", type=str, default="./output")
 
     args = parser.parse_args()
 
