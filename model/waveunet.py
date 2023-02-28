@@ -18,8 +18,6 @@ class DownSampling(nn.Module):
         self.net = nn.Sequential(
             nn.Conv1d(in_ch, out_ch, kernel_size=kernel_size, padding=7),
             nn.LeakyReLU(inplace=True),
-            nn.Conv1d(out_ch, out_ch, kernel_size=kernel_size, padding=7),
-            nn.LeakyReLU(inplace=True),
         )
 
     def forward(self, x: Tensor):
@@ -45,8 +43,6 @@ class UpSampling(nn.Module):
         self.upsample = nn.Upsample(scale_factor=2, mode="linear", align_corners=True)
         self.conv = nn.Sequential(
             nn.Conv1d(in_ch, out_ch, kernel_size=kernel_size, padding=2),
-            nn.LeakyReLU(inplace=True),
-            nn.Conv1d(out_ch, out_ch, kernel_size=kernel_size, padding=2),
             nn.LeakyReLU(inplace=True),
         )
 
@@ -95,7 +91,6 @@ class WaveUNet(nn.Module):
         self.net = nn.ModuleList(layers)
         self.separation = nn.Sequential(
             nn.Conv1d(25, n_source, kernel_size=1),
-            nn.Conv1d(n_source, n_source, kernel_size=1),
             nn.Tanh(),
         )
 

@@ -13,9 +13,9 @@ def main(args):
     path_model = os.path.expanduser(args.path_model)
     path_song = os.path.expanduser(args.path_song)
     path_to_save = os.path.normpath(args.path_to_save)
-    
+
     os.makedirs(path_to_save, exist_ok=True)
-    
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device")
     model = WaveUNet().to(device)

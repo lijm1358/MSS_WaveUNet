@@ -46,9 +46,9 @@ python predict.py --path_model model.pt --path_song path/to/song.mp3
 ```
 
 ## Models
-|Model   |Test loss(accompanies)|Test loss(vocal)  |File                    |
+|Model   |Test sdr(accompanies) |Test sdr(vocal)   |File                    |
 |--------|----------------------|------------------|------------------------|
-|baseline|1.1929972391573285    |0.6019703149795532|`checkpoint/baseline.pt`|
+|baseline|1.374189140248129     |0.9882581233978271|`checkpoint/baseline.pt`|
 
 ## Notes
 This is just the trial of implementation of WaveUNet. The models are not may as good as the result of the original paper, or the other implementations.
