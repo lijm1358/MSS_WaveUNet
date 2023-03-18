@@ -9,8 +9,8 @@ from torch import nn
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from data.dataset import MUSDBDataset
-from loss.customsdr import ModifiedSDR
+from data.dataset import MUSDBDatasetFull, MUSDBDatasetVocal
+from model.metric import sdr_vocsep, sdr_allsep
 from model.waveunet import WaveUNet
 
 
@@ -49,45 +49,6 @@ class EarlyStopping:
 
     def is_stop(self):
         return self.early_stop
-
-
-def sdr_loss_mean(y_target, y_pred, loss_fn) -> Tuple[float, list, int]:
-    """Calculate the sdr loss of batch.
-
-    Each return value will be used for the average value of accompanies' loss, and median of vocal loss.
-
-    Args:
-        y_target: original target batch
-        y_pred: prediction of y_target
-        loss_fn: loss function(SDR)
-
-    Returns:
-        float: the sum of accompanies' loss
-        list(Tensor): the list of Tensor of calculated vocal loss
-        int: the number of accmpanies' loss
-    """
-    y_target_acc = y_target[:, 0:3]
-    y_target_acc = torch.flatten(y_target_acc, end_dim=1)
-    y_pred_acc = y_pred[:, 0:3]
-    y_pred_acc = torch.flatten(y_pred_acc, end_dim=1)
-
-    y_target_voc = y_target[:, 3]
-    y_pred_voc = y_pred[:, 3]
-
-    # remove tensor element only consists of zero.
-    mask = (y_target_acc != 0).any(dim=1)
-    y_target_acc = y_target_acc[mask]
-    y_pred_acc = y_pred_acc[mask]
-
-    mask = (y_target_voc != 0).any(dim=1)
-    y_target_voc = y_target_voc[mask]
-    y_pred_voc = y_pred_voc[mask]
-
-    loss_acc = loss_fn(y_pred_acc, y_target_acc)[0].item()
-    loss_voc = loss_fn(y_pred_voc, y_target_voc)[1]
-
-    return loss_acc, loss_voc, y_target_acc.shape[0]
-
 
 def train(dataloader, model, loss_fn, loss_list, optimizer, device):
     """Training step.
@@ -145,7 +106,7 @@ def val(dataloader, model, loss_fn, loss_list, early_stop, device):
     print(f"validation loss : {loss_avg}")
 
 
-def test(dataloader, model, loss_fn, device, loss_device):
+def test(dataloader, model, device, loss_device):
     """Test step.
 
     Args:
@@ -164,7 +125,7 @@ def test(dataloader, model, loss_fn, device, loss_device):
             pred = model(X)
             if device != loss_device:
                 pred = pred.to(loss_device)
-            acc_loss, voc_loss, count = sdr_loss_mean(y, pred, loss_fn)
+            acc_loss, voc_loss, count = sdr_vocsep(pred, y)
             test_loss_acc += acc_loss
             test_loss_voc += voc_loss
             data_count += count
@@ -201,15 +162,15 @@ def main(args):
     train_loss_list = []
     val_loss_list = []
 
-    train_ds = MUSDBDataset(args.path_train)
-    test_ds = MUSDBDataset(args.path_test)
+    train_ds = MUSDBDatasetVocal(args.path_train)
+    test_ds = MUSDBDatasetVocal(args.path_test)
     valid_ds, test_ds = random_split(
         test_ds, [int(len(test_ds) * 0.5), len(test_ds) - int(len(test_ds) * 0.5)]
     )
 
-    train_dataloader = DataLoader(train_ds, batch_size=args.batch_size, num_workers=2)
-    valid_dataloader = DataLoader(valid_ds, batch_size=args.batch_size, num_workers=2)
-    test_dataloader = DataLoader(test_ds, batch_size=args.batch_size, num_workers=2)
+    train_dataloader = DataLoader(train_ds, batch_size=args.batch_size, num_workers=4)
+    valid_dataloader = DataLoader(valid_ds, batch_size=args.batch_size, num_workers=4)
+    test_dataloader = DataLoader(test_ds, batch_size=args.batch_size, num_workers=4)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     loss_device = "cpu" if args.no_cuda_sdr else device
@@ -217,7 +178,6 @@ def main(args):
 
     model = WaveUNet(n_level=args.n_layers, n_source=args.n_sources).to(device)
     loss_fn = nn.MSELoss()
-    test_loss_fn = ModifiedSDR().to(device)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, betas=[0.9, 0.999])
 
@@ -269,7 +229,7 @@ def main(args):
             pass
 
     with torch.no_grad():
-        test(test_dataloader, model, test_loss_fn, device, loss_device)
+        test(test_dataloader, model, device, loss_device)
     torch.save(model.state_dict(), "model.pt")
 
 
