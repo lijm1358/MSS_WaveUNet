@@ -18,7 +18,7 @@ def main(args):
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using {device} device")
-    model = WaveUNet().to(device)
+    model = WaveUNet(n_source=2).to(device)
     model.load_state_dict(torch.load(path_model))
 
     song_np, _ = librosa.load(path_song)
@@ -26,10 +26,11 @@ def main(args):
 
     model.eval()
     pred = None
+    print(song.shape[2])
     with torch.no_grad():
         sep_length = 16384
         start = 0
-        while start < song.shape[2]:
+        while start+sep_length < song.shape[2]:
             if pred == None:
                 pred = model(song[:, :, start : start + sep_length])
             else:
@@ -40,7 +41,7 @@ def main(args):
 
     pred = pred.cpu()
 
-    for i in range(4):
+    for i in range(2):
         soundfile.write(
             os.path.join(path_to_save, f"song_out_{i}.wav"),
             pred[0][i],
